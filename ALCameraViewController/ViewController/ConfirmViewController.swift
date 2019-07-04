@@ -32,18 +32,21 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 
 	let asset: PHAsset?
 	let image: UIImage?
+    let imageData: Data?
 	
-	public init(image: UIImage, croppingParameters: CroppingParameters) {
+    public init(image: UIImage, imageData: Data, croppingParameters: CroppingParameters) {
 		self.croppingParameters = croppingParameters
 		self.asset = nil
 		self.image = image
+        self.imageData = imageData
 		super.init(nibName: "ConfirmViewController", bundle: CameraGlobals.shared.bundle)
 	}
 	
 	public init(asset: PHAsset, croppingParameters: CroppingParameters) {
 		self.croppingParameters = croppingParameters
 		self.asset = asset
-		self.image = nil
+        self.image = nil
+		self.imageData = nil
 		super.init(nibName: "ConfirmViewController", bundle: CameraGlobals.shared.bundle)
 	}
 	
@@ -212,7 +215,7 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 	}
 	
 	internal func cancel() {
-		onComplete?(nil, nil)
+		onComplete?(nil, nil, nil)
 	}
 	
 	internal func confirmPhoto() {
@@ -220,7 +223,9 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 		guard let image = imageView.image else {
 			return
 		}
-		
+        
+        let newData = self.imageData
+        
 		disable()
 		
 		imageView.isHidden = true
@@ -230,7 +235,7 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 		if let asset = asset {
 			var fetcher = SingleImageFetcher()
 				.onSuccess { [weak self] image in
-					self?.onComplete?(image, self?.asset)
+					self?.onComplete?(image, self?.imageData, self?.asset)
 					self?.hideSpinner(spinner)
 					self?.enable()
 				}
@@ -247,7 +252,7 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 			fetcher = fetcher.fetch()
 		} else {
 			var newImage = image
-			
+        
 			if croppingParameters.isEnabled {
 				let cropRect = makeProportionalCropRect()
 				let resizedCropRect = CGRect(x: (image.size.width) * cropRect.origin.x,
@@ -257,7 +262,7 @@ public class ConfirmViewController: UIViewController, UIScrollViewDelegate {
 				newImage = image.crop(rect: resizedCropRect)
 			}
 			
-			onComplete?(newImage, nil)
+            onComplete?(newImage, newData, nil)
 			hideSpinner(spinner)
 			enable()
 		}

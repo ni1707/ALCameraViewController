@@ -22,5 +22,13 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSPrincipalClass</key>
 	<string></string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location may be shown in the map and used for directions.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Your location may be shown in the map and used for directions.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Your location may be shown in the map and used for directions.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Your location may be shown in the map and used for directions.</string>
 </dict>
 </plist>

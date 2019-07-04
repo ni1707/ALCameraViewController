@@ -9,8 +9,9 @@
 import UIKit
 import AVFoundation
 import Photos
+import CoreLocation
 
-public typealias CameraViewCompletion = (UIImage?, PHAsset?) -> Void
+public typealias CameraViewCompletion = (UIImage?, Data?, PHAsset?) -> Void
 
 public extension CameraViewController {
     /// Provides an image picker wrapped inside a UINavigationController instance
@@ -25,9 +26,9 @@ public extension CameraViewController {
         imagePicker.onSelectionComplete = { [weak imagePicker] asset in
             if let asset = asset {
                 let confirmController = ConfirmViewController(asset: asset, croppingParameters: croppingParameters)
-                confirmController.onComplete = { [weak imagePicker] image, asset in
-                    if let image = image, let asset = asset {
-                        completion(image, asset)
+                confirmController.onComplete = { [weak imagePicker] image, imageData, asset in
+                    if let image = image, let imageData = imageData, let asset = asset {
+                        completion(image, imageData, asset)
                     } else {
                         imagePicker?.dismiss(animated: true, completion: nil)
                     }
@@ -35,7 +36,7 @@ public extension CameraViewController {
                 confirmController.modalTransitionStyle = UIModalTransitionStyle.crossDissolve
                 imagePicker?.present(confirmController, animated: true, completion: nil)
             } else {
-                completion(nil, nil)
+                completion(nil, nil, nil)
             }
         }
         
@@ -505,23 +506,24 @@ open class CameraViewController: UIViewController {
         
         if connection.isEnabled {
             toggleButtons(enabled: false)
-            cameraView.capturePhoto { [weak self] image in
-                guard let image = image else {
+            cameraView.capturePhoto { [weak self] image, imageData in
+                guard let image = image, let imageData = imageData else {
                     self?.toggleButtons(enabled: true)
                     return
                 }
-                self?.saveImage(image: image)
+                self?.saveImage(image: image, imageData: imageData)
             }
         }
     }
     
-    internal func saveImage(image: UIImage) {
+    internal func saveImage(image: UIImage, imageData: Data) {
         let spinner = showSpinner()
         cameraView.preview.isHidden = true
-
+        
 		if allowsLibraryAccess {
         _ = SingleImageSaver()
             .setImage(image)
+            .setImageData(imageData)
             .onSuccess { [weak self] asset in
                 self?.layoutCameraResult(asset: asset)
                 self?.hideSpinner(spinner)
@@ -534,18 +536,18 @@ open class CameraViewController: UIViewController {
             }
             .save()
 		} else {
-			layoutCameraResult(uiImage: image)
+            layoutCameraResult(uiImage: image, imageData: imageData)
 			hideSpinner(spinner)
 		}
     }
 	
     internal func close() {
-        onCompletion?(nil, nil)
+        onCompletion?(nil, nil, nil)
         onCompletion = nil
     }
     
     internal func showLibrary() {
-        let imagePicker = CameraViewController.imagePickerViewController(croppingParameters: croppingParameters) { [weak self] image, asset in
+        let imagePicker = CameraViewController.imagePickerViewController(croppingParameters: croppingParameters) { [weak self] image, imageData, asset in
             defer {
                 self?.dismiss(animated: true, completion: nil)
             }
@@ -554,7 +556,7 @@ open class CameraViewController: UIViewController {
                 return
             }
 
-            self?.onCompletion?(image, asset)
+            self?.onCompletion?(image, imageData, asset)
         }
         
         present(imagePicker, animated: true) { [weak self] in
@@ -581,9 +583,9 @@ open class CameraViewController: UIViewController {
         flashButton.isHidden = cameraView.currentPosition == AVCaptureDevice.Position.front
     }
 	
-	internal func layoutCameraResult(uiImage: UIImage) {
+    internal func layoutCameraResult(uiImage: UIImage, imageData: Data) {
 		cameraView.stopSession()
-		startConfirmController(uiImage: uiImage)
+        startConfirmController(uiImage: uiImage, imageData: imageData)
 		toggleButtons(enabled: true)
 	}
 	
@@ -593,9 +595,9 @@ open class CameraViewController: UIViewController {
         toggleButtons(enabled: true)
     }
 	
-	private func startConfirmController(uiImage: UIImage) {
-		let confirmViewController = ConfirmViewController(image: uiImage, croppingParameters: croppingParameters)
-		confirmViewController.onComplete = { [weak self] image, asset in
+    private func startConfirmController(uiImage: UIImage, imageData: Data) {
+        let confirmViewController = ConfirmViewController(image: uiImage, imageData: imageData, croppingParameters: croppingParameters)
+		confirmViewController.onComplete = { [weak self] image, imageData, asset in
 			defer {
 				self?.dismiss(animated: true, completion: nil)
 			}
@@ -604,7 +606,7 @@ open class CameraViewController: UIViewController {
 				return
 			}
 			
-			self?.onCompletion?(image, asset)
+			self?.onCompletion?(image, imageData, asset)
 			self?.onCompletion = nil
 		}
 		confirmViewController.modalTransitionStyle = UIModalTransitionStyle.crossDissolve
@@ -613,7 +615,7 @@ open class CameraViewController: UIViewController {
 	
     private func startConfirmController(asset: PHAsset) {
         let confirmViewController = ConfirmViewController(asset: asset, croppingParameters: croppingParameters)
-        confirmViewController.onComplete = { [weak self] image, asset in
+        confirmViewController.onComplete = { [weak self] image, imageData, asset in
             defer {
                 self?.dismiss(animated: true, completion: nil)
             }
@@ -622,7 +624,7 @@ open class CameraViewController: UIViewController {
                 return
             }
 
-            self?.onCompletion?(image, asset)
+            self?.onCompletion?(image, imageData, asset)
             self?.onCompletion = nil
         }
         confirmViewController.modalTransitionStyle = UIModalTransitionStyle.crossDissolve
